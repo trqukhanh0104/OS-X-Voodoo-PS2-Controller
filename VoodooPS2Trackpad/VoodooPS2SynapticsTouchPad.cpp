@@ -186,6 +186,8 @@ bool ApplePS2SynapticsTouchPad::init(OSDictionary * dict)
 	xrest=0;
 	yrest=0;
     lastbuttons=0;
+    lastThreeFingerX = 0;
+    lastThreeFingerY = 0;
     
     // intialize state for secondary packets/extendedwmode
     xrest2=0;
@@ -1520,8 +1522,8 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
 	if (z<z_finger && isTouchMode())
 	{
 		xrest=yrest=scrollrest=0;
-        inSwipeLeft=inSwipeRight=inSwipeUp=inSwipeDown=0;
-        xmoved=ymoved=0;
+//        inSwipeLeft=inSwipeRight=inSwipeUp=inSwipeDown=0;
+//        xmoved=ymoved=0;
 		untouchtime=now_ns;
         tracksecondary=false;
         
@@ -1667,6 +1669,55 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
 		case MODE_MTOUCH:
             switch (w)
             {
+                case 1: // three finger
+                    if(lastThreeFingerX == 0 || lastThreeFingerY == 0){
+                        lastThreeFingerX = x;
+                        lastThreeFingerY = y;
+                    }
+                    xmoved += lastThreeFingerX-x;
+                    ymoved += y-lastThreeFingerY;
+                    
+                    lastThreeFingerX = x;
+                    lastThreeFingerY = y;
+//                    IOLog("ps2Custom: X is %d, Y is %d, xmoved is %d, ymoved is %d",x,y,xmoved,ymoved);
+                    // dispatching 3 finger movement
+                    if (xmoved < -swipedx && !inSwipeRight)
+                    {
+                        inSwipeRight=1;
+                        inSwipeLeft=0;
+                        xmoved = 0;
+                        ymoved = 0;
+                        _device->dispatchKeyboardMessage(kPS2M_swipeRight, &now_abs);
+                        break;
+                    }
+                    if (xmoved > swipedx && !inSwipeLeft)
+                    {
+                        inSwipeLeft=1;
+                        inSwipeRight=0;
+                        xmoved = 0;
+                        ymoved = 0;
+                        _device->dispatchKeyboardMessage(kPS2M_swipeLeft, &now_abs);
+                        break;
+                    }
+                    if (ymoved > swipedy && !inSwipeUp)
+                    {
+                        inSwipeUp=1;
+                        inSwipeDown=0;
+                        xmoved = 0;
+                        ymoved = 0;
+                        _device->dispatchKeyboardMessage(kPS2M_swipeUp, &now_abs);
+                        break;
+                    }
+                    if (ymoved < -swipedy && !inSwipeDown)
+                    {
+                        inSwipeDown=1;
+                        inSwipeUp=0;
+                        xmoved = 0;
+                        ymoved = 0;
+                        _device->dispatchKeyboardMessage(kPS2M_swipeDown, &now_abs);
+                        break;
+                    }
+                    break;
                 default: // two finger (0 is really two fingers, but...)
                     if (_extendedwmode && 0 == w && _clickbuttons)
                     {
@@ -1730,47 +1781,10 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     if (0 != dy || 0 != dx)
                     {
                         dispatchScrollWheelEventX(wvdivisor ? dy / wvdivisor : 0, (whdivisor && hscroll) ? dx / whdivisor : 0, 0, now_abs);
-                        ////IOLog("ps2: dx=%d, dy=%d (%d,%d) z=%d w=%d\n", dx, dy, x, y, z, w);
+//                        IOLog("ps2TwoFinger: dx=%d, dy=%d (%d,%d) z=%d w=%d\n", dx, dy, x, y, z, w);
                         dx = dy = 0;
                     }
                     break;
-                        
-                case 1: // three finger
-                    xmoved += lastx-x;
-                    ymoved += y-lasty;
-                    // dispatching 3 finger movement
-                    if (ymoved > swipedy && !inSwipeUp)
-                    {
-                        inSwipeUp=1;
-                        inSwipeDown=0;
-                        ymoved = 0;
-                        _device->dispatchKeyboardMessage(kPS2M_swipeUp, &now_abs);
-                        break;
-                    }
-                    if (ymoved < -swipedy && !inSwipeDown)
-                    {
-                        inSwipeDown=1;
-                        inSwipeUp=0;
-                        ymoved = 0;
-                        _device->dispatchKeyboardMessage(kPS2M_swipeDown, &now_abs);
-                        break;
-                    }
-                    if (xmoved < -swipedx && !inSwipeRight)
-                    {
-                        inSwipeRight=1;
-                        inSwipeLeft=0;
-                        xmoved = 0;
-                        _device->dispatchKeyboardMessage(kPS2M_swipeRight, &now_abs);
-                        break;
-                    }
-                    if (xmoved > swipedx && !inSwipeLeft)
-                    {
-                        inSwipeLeft=1;
-                        inSwipeRight=0;
-                        xmoved = 0;
-                        _device->dispatchKeyboardMessage(kPS2M_swipeLeft, &now_abs);
-                        break;
-                    }
             }
             break;
 			
@@ -1966,6 +1980,14 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
 	lasty=y;
     lastf=f;
     
+    if(w != 1 || f != 3){
+        lastThreeFingerY = 0;
+        lastThreeFingerX = 0;
+        xmoved = 0;
+        ymoved = 0;
+        inSwipeLeft=inSwipeRight=inSwipeUp=inSwipeDown=0;
+    }
+//    IOLog("ps2: (%d,%d) z=%d w=%d f=%d \n", x, y, z, w, f);
 #ifdef DEBUG_VERBOSE
     IOLog("ps2: dx=%d, dy=%d (%d,%d) z=%d w=%d mode=(%d,%d,%d) buttons=%d wasdouble=%d\n", dx, dy, x, y, z, w, tm1, tm2, touchmode, buttons, wasdouble);
 #endif

@@ -259,6 +259,7 @@ private:
 
     // normal state
 	int lastx, lasty, lastf;
+    int lastThreeFingerX,lastThreeFingerY;
     UInt32 lastbuttons;
     int ignoredeltas;
 	int xrest, yrest, scrollrest;
