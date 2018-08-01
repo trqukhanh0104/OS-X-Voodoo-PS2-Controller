@@ -247,6 +247,10 @@ private:
     uint8_t inSwipeUp, inSwipeDown;
     int xmoved, ymoved;
     
+    //two finger
+    int xmoved2f,ymoved2f;
+    uint8_t inSwipeLeft2f, inSwipeRight2f;
+    
     int rczl, rczr, rczb, rczt; // rightclick zone for 1-button ClickPads
     
     // state related to secondary packets/extendedwmode
@@ -260,6 +264,9 @@ private:
     // normal state
 	int lastx, lasty, lastf;
     int lastThreeFingerX,lastThreeFingerY;
+    int lastTwoFingerX,lastTwoFingerY;
+    int lastZoomX,lastZoomY;
+    int zoomMoved;
     UInt32 lastbuttons;
     int ignoredeltas;
 	int xrest, yrest, scrollrest;

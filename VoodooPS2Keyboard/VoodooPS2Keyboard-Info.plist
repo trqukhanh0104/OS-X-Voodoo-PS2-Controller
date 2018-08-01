@@ -50,6 +50,10 @@
 				</dict>
 				<key>Default</key>
 				<dict>
+					<key>ActionSwipeRight2f</key>
+					<string>37 d, 38 d, 1e d, 1e u, 38 u, 37 u</string>
+					<key>ActionSwipeLeft2f</key>
+					<string>37 d, 38 d, 21 d, 21 u, 38 u, 37 u</string>
 					<key>Make Application key into right windows</key>
 					<true/>
 					<key>Make Application key into Apple Fn key</key>

@@ -65,6 +65,8 @@ void* _org_rehabman_dontstrip_[] =
 #define kActionSwipeDown                    "ActionSwipeDown"
 #define kActionSwipeLeft                    "ActionSwipeLeft"
 #define kActionSwipeRight                   "ActionSwipeRight"
+#define kActionSwipeLeft2f                    "ActionSwipeLeft2f"
+#define kActionSwipeRight2f                   "ActionSwipeRight2f"
 #define kBrightnessHack                     "BrightnessHack"
 #define kMacroInversion                     "Macro Inversion"
 #define kMacroTranslation                   "Macro Translation"
@@ -261,6 +263,16 @@ bool ApplePS2Keyboard::init(OSDictionary * dict)
     parseAction("3b d, 37 d, 7d d, 7d u, 37 u, 3b u", _actionSwipeDown, countof(_actionSwipeDown));
     parseAction("3b d, 37 d, 7b d, 7b u, 37 u, 3b u", _actionSwipeLeft, countof(_actionSwipeLeft));
     parseAction("3b d, 37 d, 7c d, 7c u, 37 u, 3b u", _actionSwipeRight, countof(_actionSwipeRight));
+    parseAction("37 d, 38 d, 21 d, 21 u, 38 u, 37 u", _actionSwipeLeft2f, countof(_actionSwipeLeft2f));
+    parseAction("37 d, 38 d, 1e d, 1e u, 38 u, 37 u", _actionSwipeRight2f, countof(_actionSwipeRight2f));
+    parseAction("37 d, 18 d, 18 u, 37 u", _actionZoomIn, countof(_actionZoomIn));
+    parseAction("37 d, 1b d, 1b u, 37 u", _actionZoomOut, countof(_actionZoomOut));
+    
+    IOLog("ps2Custom: swipe up %d",*_actionSwipeUp);
+    IOLog("ps2Custom: swipe down %d",*_actionSwipeDown);
+    IOLog("ps2Custom: swipe left %d",*_actionSwipeLeft);
+    IOLog("ps2Custom: swipe right %d",*_actionSwipeRight);
+    
 
     return true;
 }
@@ -961,6 +973,22 @@ void ApplePS2Keyboard::setParamPropertiesGated(OSDictionary * dict)
         parseAction(str->getCStringNoCopy(), _actionSwipeRight, countof(_actionSwipeRight));
         setProperty(kActionSwipeRight, str);
     }
+    
+    
+    str = OSDynamicCast(OSString, dict->getObject(kActionSwipeLeft2f));
+    if (str)
+    {
+        parseAction(str->getCStringNoCopy(), _actionSwipeLeft2f, countof(_actionSwipeLeft2f));
+        setProperty(kActionSwipeLeft2f, str);
+    }
+    
+    str = OSDynamicCast(OSString, dict->getObject(kActionSwipeRight2f));
+    if (str)
+    {
+        parseAction(str->getCStringNoCopy(), _actionSwipeRight2f, countof(_actionSwipeRight2f));
+        setProperty(kActionSwipeRight2f, str);
+    }
+
 }
 
 IOReturn ApplePS2Keyboard::setParamProperties(OSDictionary *dict)
@@ -1931,9 +1959,28 @@ void ApplePS2Keyboard::receiveMessage(int message, void* data)
             sendKeySequence(_actionSwipeRight);
 			break;
             
+            
+        case kPS2M_swipeLeft2f:
+            DEBUG_LOG("ApplePS2Keyboard: Synaptic Trackpad call Swipe Left\n");
+            sendKeySequence(_actionSwipeLeft2f);
+            break;
+            
+        case kPS2M_swipeRight2f:
+            DEBUG_LOG("ApplePS2Keyboard: Synaptic Trackpad call Swipe Right\n");
+            sendKeySequence(_actionSwipeRight2f);
+            break;
+            
         case kPS2M_swipeUp:
 			DEBUG_LOG("ApplePS2Keyboard: Synaptic Trackpad call Swipe Up\n");
             sendKeySequence(_actionSwipeUp);
+            break;
+        case kPS2M_zoomIn:
+            DEBUG_LOG("ApplePS2Keyboard: Synaptic Trackpad call zoom in\n");
+            sendKeySequence(_actionZoomIn);
+            break;
+        case kPS2M_zoomOut:
+            DEBUG_LOG("ApplePS2Keyboard: Synaptic Trackpad call zoom out\n");
+            sendKeySequence(_actionZoomOut);
             break;
     }
 }

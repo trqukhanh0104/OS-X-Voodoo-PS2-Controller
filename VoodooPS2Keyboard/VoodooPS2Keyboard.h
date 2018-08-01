@@ -107,6 +107,10 @@ private:
     UInt16                      _actionSwipeDown[16];
     UInt16                      _actionSwipeLeft[16];
     UInt16                      _actionSwipeRight[16];
+    UInt16                      _actionSwipeLeft2f[16];
+    UInt16                      _actionSwipeRight2f[16];
+    UInt16                      _actionZoomIn[16];
+    UInt16                      _actionZoomOut[16];
 
     // ACPI support for screen brightness
     IOACPIPlatformDevice *      _provider;
