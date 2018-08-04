@@ -250,6 +250,7 @@ private:
     //two finger
     int xmoved2f,ymoved2f;
     uint8_t inSwipeLeft2f, inSwipeRight2f;
+    uint64_t lockTime;
     
     int rczl, rczr, rczb, rczt; // rightclick zone for 1-button ClickPads
     
@@ -267,6 +268,7 @@ private:
     int lastTwoFingerX,lastTwoFingerY;
     int lastZoomX,lastZoomY;
     int zoomMoved;
+    int zeroCount;
     UInt32 lastbuttons;
     int ignoredeltas;
 	int xrest, yrest, scrollrest;
@@ -424,9 +426,18 @@ protected:
 	virtual IOItemCount buttonCount();
 	virtual IOFixed     resolution();
     inline void dispatchRelativePointerEventX(int dx, int dy, UInt32 buttonState, uint64_t now)
-        { dispatchRelativePointerEvent(dx, dy, buttonState, *(AbsoluteTime*)&now); }
+        {
+            if(now > lockTime){
+                dispatchRelativePointerEvent(dx, dy, buttonState, *(AbsoluteTime*)&now);
+            }
+            
+        }
     inline void dispatchScrollWheelEventX(short deltaAxis1, short deltaAxis2, short deltaAxis3, uint64_t now)
-        { dispatchScrollWheelEvent(deltaAxis1, deltaAxis2, deltaAxis3, *(AbsoluteTime*)&now); }
+        {
+            if(now > lockTime){
+                dispatchScrollWheelEvent(deltaAxis1, deltaAxis2, deltaAxis3, *(AbsoluteTime*)&now);
+            }
+        }
     inline void setTimerTimeout(IOTimerEventSource* timer, uint64_t time)
         { timer->setTimeout(*(AbsoluteTime*)&time); }
     inline void cancelTimer(IOTimerEventSource* timer)

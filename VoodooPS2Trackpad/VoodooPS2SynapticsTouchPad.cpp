@@ -188,6 +188,9 @@ bool ApplePS2SynapticsTouchPad::init(OSDictionary * dict)
     lastbuttons=0;
     lastThreeFingerX = 0;
     lastThreeFingerY = 0;
+    lastTwoFingerY = 0;
+    lastTwoFingerX = 0;
+    zeroCount = 0;
     
     // intialize state for secondary packets/extendedwmode
     xrest2=0;
@@ -195,6 +198,7 @@ bool ApplePS2SynapticsTouchPad::init(OSDictionary * dict)
     clickedprimary=false;
     lastx2=0;
     lasty2=0;
+    lockTime = 0;
     tracksecondary=false;
     
     // state for middle button
@@ -1140,14 +1144,9 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
 	clock_get_uptime(&now_abs);
     uint64_t now_ns;
     absolutetime_to_nanoseconds(now_abs, &now_ns);
-
-    //
-    // Parse the packet
-    //
-//    IOLog("ps2Custom: Package [%d,%d,%d,%d,%d,%d]",packet[0],packet[1],packet[2],packet[3],packet[4],packet[5]);
     
-
-	int w = ((packet[3]&0x4)>>2)|((packet[0]&0x4)>>1)|((packet[0]&0x30)>>2);
+    int w = ((packet[3]&0x4)>>2)|((packet[0]&0x4)>>1)|((packet[0]&0x30)>>2);
+    
     
     if (_extendedwmode && 2 == w)
     {
@@ -1266,6 +1265,9 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
     }
     int x = xraw;
     int y = yraw;
+    
+    
+    IOLog("ps2Custom: (%d,%d,%d,%d) = %llu",x,y,f,w,now_abs);
     
     // recalc middle buttons if finger is going down
     if (0 == lastf && f > 0)
@@ -1650,6 +1652,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
     int tm2 = touchmode;
 #endif
     int dx = 0, dy = 0;
+    int xm = 1;
     
 	switch (touchmode)
 	{
@@ -1673,7 +1676,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
 		case MODE_MTOUCH:
             switch (w)
             {
-                case 1: // three finger
+                case 1: // This case occurs when the user is using three fingers.
                     if(lastThreeFingerX == 0 || lastThreeFingerY == 0){
                         lastThreeFingerX = x;
                         lastThreeFingerY = y;
@@ -1687,9 +1690,6 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     
                     lastThreeFingerX = x;
                     lastThreeFingerY = y;
-//                    IOLog("ps2Custom: X is %d, Y is %d, xmoved is %d, ymoved is %d",x,y,xmoved,ymoved);
-//                  dispatching 3 finger movement
-//                    IOLog("ps2Custom: Absoluted Time is %llu and nanoseconds is %llu",now_abs,now_ns);
                     if (xmoved < -swipedx && !inSwipeRight)
                     {
                         inSwipeRight=1;
@@ -1727,7 +1727,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                         break;
                     }
                     break;
-                default: // two finger (0 is really two fingers, but...)
+                default: //This case occues when the user is using two fingers (0 is really two fingers, but...)
                     if (_extendedwmode && 0 == w && _clickbuttons)
                     {
                         // clickbuttons are set, so no scrolling, but...
@@ -1763,7 +1763,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     if (palm_wt && now_ns-keytime < maxaftertyping)
                         break;
                   
-                    //determine horizontal scroll
+                    //track horizontal scroll
                     if(lastTwoFingerX == 0 || lastTwoFingerY == 0){
                         lastTwoFingerX = x;
                         lastTwoFingerY = y;
@@ -1778,61 +1778,72 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     lastTwoFingerX = x;
                     lastTwoFingerY = y;
                     
-                    if(abs(xmoved2f) < abs(ymoved2f)){
-                        //vertical scroll
-                        dy = (wvdivisor) ? (y-lasty+yrest) : 0;
-                        dx = (whdivisor&&hscroll) ? (lastx-x+xrest) : 0;
-                        yrest = (wvdivisor) ? dy % wvdivisor : 0;
-                        xrest = (whdivisor&&hscroll) ? dx % whdivisor : 0;
-                        // check for stopping or changing direction
-                        if ((dy < 0) != (dy_history.newest() < 0) || dy == 0)
-                        {
-                            // stopped or changed direction, clear history
-                            dy_history.reset();
-                            time_history.reset();
-                        }
-                        // put movement and time in history for later
-                        dy_history.filter(dy);
-                        time_history.filter(now_ns);
-                        //REVIEW: filter out small movements (Mavericks issue)
-                        if (abs(dx) < scrolldxthresh)
-                        {
-                            xrest = dx;
-                            dx = 0;
-                        }
-                        if (abs(dy) < scrolldythresh)
-                        {
-                            yrest = dy;
-                            dy = 0;
-                        }
-                        
-                        if (0 != dy || 0 != dx)
-                        {
-                            dispatchScrollWheelEventX(wvdivisor ? dy / wvdivisor : 0, 0, 0, now_abs);
-                            //IOLog("ps2TwoFinger: dx=%d, dy=%d (%d,%d) z=%d w=%d\n", dx, dy, x, y, z, w);
-                        }
+                    //vertical scroll
+                    dy = (wvdivisor) ? (y-lasty+yrest) : 0;
+                    dx = (whdivisor&&hscroll) ? (lastx-x+xrest) : 0;
+                    yrest = (wvdivisor) ? dy % wvdivisor : 0;
+                    xrest = (whdivisor&&hscroll) ? dx % whdivisor : 0;
+                    // check for stopping or changing direction
+                    if ((dy < 0) != (dy_history.newest() < 0) || dy == 0)
+                    {
+                        // stopped or changed direction, clear history
+                        dy_history.reset();
+                        time_history.reset();
                     }
-                    dx = dy = 0;
+                    // put movement and time in history for later
+                    dy_history.filter(dy);
+                    time_history.filter(now_ns);
+                    //REVIEW: filter out small movements (Mavericks issue)
+                    if (abs(dx) < scrolldxthresh)
+                    {
+                        xrest = dx;
+                        dx = 0;
+                    }
+                    if (abs(dy) < scrolldythresh)
+                    {
+                        yrest = dy;
+                        dy = 0;
+                    }
                     
-//                    IOLog("ps2Custom: X is %d, Y is %d, xmoved2f is %d, ymoved2f is %d",x,y,xmoved2f,ymoved2f);
-                    
-//                    IOLog("ps2Custom: Absoluted Time is %llu and nanoseconds is %llu",now_abs,now_ns);
                     if (xmoved2f < -swipedx && !inSwipeRight2f)
                     {
+                        IOLog("ps2Custom: Locked trackpad");
+                        lockTime = now_abs + 500000000;
+                        zeroCount = 0;
                         inSwipeRight2f=1;
                         inSwipeLeft2f=0;
-//                        IOLog("ps2Custom: Swipe right 2f");
                         _device->dispatchKeyboardMessage(kPS2M_swipeRight2f, &now_abs);
                         break;
                     }
                     if (xmoved2f > swipedx && !inSwipeLeft2f)
                     {
+                        IOLog("ps2Custom: Locked trackpad");
+                        lockTime = now_abs + 500000000;
+                        zeroCount = 0;
                         inSwipeLeft2f=1;
                         inSwipeRight2f=0;
-//                        IOLog("ps2Custom: swiper left 2f");
                         _device->dispatchKeyboardMessage(kPS2M_swipeLeft2f, &now_abs);
                         break;
                     }
+                    
+                    xm = abs(xmoved2f);
+                    if(xm <= 0){
+                        xm = 1;
+                    }
+                    if(abs(ymoved2f) / xm >= 2 ){
+                        if (0 != dy || 0 != dx)
+                        {
+                            dispatchScrollWheelEventX(wvdivisor ? dy / wvdivisor : 0, 0, 0, now_abs);
+                        }
+                    } else if(y > 3800){
+                        if (0 != dy || 0 != dx)
+                        {
+                            dispatchScrollWheelEventX(0, (whdivisor && hscroll) ? dx / whdivisor : 0, 0, now_abs);
+                        }
+                        xmoved2f = 0;
+                        ymoved2f = 0;
+                    }
+                    dx = dy = 0;
                     break;
             }
             break;
@@ -2082,11 +2093,20 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
         inSwipeRight2f = 0;
     }
     
+    if(x == 0 && y == 0){
+        zeroCount++;
+    } else if(x > 0 && y > 0 && zeroCount > 10){
+        IOLog("ps2Custom: Unlocked trackpad");
+        lockTime = 0;
+    }
+
     // always save last seen position for calculating deltas later
     lastx=x;
     lasty=y;
     lastf=f;
-    IOLog("ps2Custom: No-EW (%d,%d) z=%d w=%d f=%d dx=%d, dy=%d \n", x, y, z, w, f,dx,dy);
+    
+//    IOLog("ps2Custom: (%d,%d,%d,%d) = %llu",x,y,f,w,now_abs);
+//    IOLog("ps2Custom: No-EW (%d,%d) z=%d w=%d f=%d dx=%d, dy=%d \n", x, y, z, w, f,dx,dy);
     
 #ifdef DEBUG_VERBOSE
     IOLog("ps2: dx=%d, dy=%d (%d,%d) z=%d w=%d mode=(%d,%d,%d) buttons=%d wasdouble=%d\n", dx, dy, x, y, z, w, tm1, tm2, touchmode, buttons, wasdouble);
