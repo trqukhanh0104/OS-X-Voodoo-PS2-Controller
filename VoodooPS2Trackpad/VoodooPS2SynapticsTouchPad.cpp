@@ -72,6 +72,23 @@ IOFixed     ApplePS2SynapticsTouchPad::resolution()  { return _resolution << 16;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+void ApplePS2SynapticsTouchPad::dispatchRelativePointerEventX(int dx, int dy, UInt32 buttonState, uint64_t now)
+{
+    if(now > lockTime){
+        if(dx != 0){
+            dx = (dx + lastDx)/2;
+        }
+        
+        if(dy != 0){
+            dy = (dy + lastDy)/2;
+        }
+      
+        dispatchRelativePointerEvent(dx,dy, buttonState, *(AbsoluteTime*)&now);
+        lastDx = dx;
+        lastDy = dy;
+    }
+}
+
 bool ApplePS2SynapticsTouchPad::init(OSDictionary * dict)
 {
     //
@@ -199,6 +216,7 @@ bool ApplePS2SynapticsTouchPad::init(OSDictionary * dict)
     lastx2=0;
     lasty2=0;
     lockTime = 0;
+    maxLockTime = 1200000000;
     tracksecondary=false;
     
     // state for middle button
@@ -1808,7 +1826,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     if (xmoved2f < -swipedx && !inSwipeRight2f)
                     {
                         IOLog("ps2Custom: Locked trackpad");
-                        lockTime = now_abs + 500000000;
+                        lockTime = now_abs + maxLockTime;
                         zeroCount = 0;
                         inSwipeRight2f=1;
                         inSwipeLeft2f=0;
@@ -1818,7 +1836,7 @@ void ApplePS2SynapticsTouchPad::dispatchEventsWithPacket(UInt8* packet, UInt32 p
                     if (xmoved2f > swipedx && !inSwipeLeft2f)
                     {
                         IOLog("ps2Custom: Locked trackpad");
-                        lockTime = now_abs + 500000000;
+                        lockTime = now_abs + maxLockTime;
                         zeroCount = 0;
                         inSwipeLeft2f=1;
                         inSwipeRight2f=0;

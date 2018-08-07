@@ -251,6 +251,7 @@ private:
     int xmoved2f,ymoved2f;
     uint8_t inSwipeLeft2f, inSwipeRight2f;
     uint64_t lockTime;
+    uint64_t maxLockTime;
     
     int rczl, rczr, rczb, rczt; // rightclick zone for 1-button ClickPads
     
@@ -269,6 +270,7 @@ private:
     int lastZoomX,lastZoomY;
     int zoomMoved;
     int zeroCount;
+    int lastDx,lastDy;
     UInt32 lastbuttons;
     int ignoredeltas;
 	int xrest, yrest, scrollrest;
@@ -425,13 +427,7 @@ private:
 protected:
 	virtual IOItemCount buttonCount();
 	virtual IOFixed     resolution();
-    inline void dispatchRelativePointerEventX(int dx, int dy, UInt32 buttonState, uint64_t now)
-        {
-            if(now > lockTime){
-                dispatchRelativePointerEvent(dx, dy, buttonState, *(AbsoluteTime*)&now);
-            }
-            
-        }
+    void dispatchRelativePointerEventX(int dx, int dy, UInt32 buttonState, uint64_t now);
     inline void dispatchScrollWheelEventX(short deltaAxis1, short deltaAxis2, short deltaAxis3, uint64_t now)
         {
             if(now > lockTime){

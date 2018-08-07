@@ -70,7 +70,7 @@ private:
   int                   defres;
   int					forceres;
   int                   mouseyinverter;
-  int                   scrollyinverter;
+int                   scrollyinverter;
   int                   forcesetres;
   int32_t               resmode;
   int32_t               scrollres;

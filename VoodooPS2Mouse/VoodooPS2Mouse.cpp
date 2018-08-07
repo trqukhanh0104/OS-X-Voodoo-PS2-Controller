@@ -962,6 +962,7 @@ void ApplePS2Mouse::dispatchRelativePointerEventWithPacket(UInt8 * packet,
     // HID/CG.
     //
     if (!ignoreall)
+        IOLog("ps2m: dx=%d, dy=%d, dz=%d, buttons=%d\n", dx, dy, dz, buttons);
        dispatchScrollWheelEventX(-scrollyinverter*dz, 0, 0, now_abs);
   }
     
